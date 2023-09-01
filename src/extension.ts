@@ -419,7 +419,4 @@ function matchingSelect({
     }
     return s;
   });
-  if (success && start_char === "<") {
-    vscode.commands.executeCommand("editor.action.addSelectionToNextFindMatch");
-  }
 }
