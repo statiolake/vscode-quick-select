@@ -2,8 +2,8 @@
   "name": "vscode-quick-select",
   "displayName": "Quick and Simple Text Selection",
   "description": "Jump to select between quote, brackets, tags, etc",
-  "version": "0.2.9",
-  "publisher": "dbankier",
+  "version": "0.3.0",
+  "publisher": "statiolake",
   "engines": {
     "vscode": "^1.0.3"
   },
@@ -185,6 +185,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/dbankier/vscode-quick-select/"
+    "url": "https://github.com/statiolake/vscode-quick-select/"
   }
 }
