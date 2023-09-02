@@ -5,26 +5,12 @@
   "version": "0.3.0",
   "publisher": "statiolake",
   "engines": {
-    "vscode": "^1.0.3"
+    "vscode": "^1.75.0"
   },
   "categories": [
     "Other"
   ],
-  "activationEvents": [
-    "onCommand:extension.selectSingleQuote",
-    "onCommand:extension.selectDoubleQuote",
-    "onCommand:extension.selectEitherQuote",
-    "onCommand:extension.switchQuotes",
-    "onCommand:extension.selectParenthesis",
-    "onCommand:extension.selectBackTick",
-    "onCommand:extension.selectSquareBrackets",
-    "onCommand:extension.selectCurlyBrackets",
-    "onCommand:extension.selectParenthesisOuter",
-    "onCommand:extension.selectSquareBracketsOuter",
-    "onCommand:extension.selectCurlyBracketsOuter",
-    "onCommand:extension.selectAngleBrackets",
-    "onCommand:extension.selectInTag"
-  ],
+  "activationEvents": [],
   "main": "./out/src/extension",
   "contributes": {
     "commands": [
@@ -175,13 +161,12 @@
   },
   "scripts": {
     "vscode:prepublish": "tsc -p ./",
-    "compile": "tsc -watch -p ./",
-    "postinstall": "node ./node_modules/vscode/bin/install"
+    "compile": "tsc -watch -p ./"
   },
   "devDependencies": {
-    "typescript": "^2.0.3",
-    "vscode": "^1.0.0",
-    "@types/node": "^6.0.40"
+    "@types/node": "^20.5.8",
+    "@types/vscode": "^1.75.0",
+    "typescript": "^5.2.2"
   },
   "repository": {
     "type": "git",
