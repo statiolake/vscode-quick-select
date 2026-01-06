@@ -608,10 +608,11 @@ export function calculateArgumentSelect(
 		}
 
 		if (isFirstArg) {
-			// First argument with more args: include comma after
+			// First argument with more args: include from opening bracket (after it) to comma
+			// This includes any leading whitespace/newlines so deletion is clean
 			return {
-				startLine: resultStartLine,
-				startChar: innerStartChar,
+				startLine: argStartBoundary.line,
+				startChar: argStartBoundary.idx + 1, // Right after opening bracket
 				endLine: argEndBoundary.line,
 				endChar: argEndBoundary.idx + 1, // Include the comma
 			};

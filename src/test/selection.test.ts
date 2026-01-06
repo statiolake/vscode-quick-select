@@ -630,5 +630,330 @@ suite("Selection Core Tests", () => {
 			assert.strictEqual(result.startChar, 5);
 			assert.strictEqual(result.endChar, 9);
 		});
+
+		// Nested parentheses tests (ported from vscode-waltz)
+		test("handles nested parentheses - cursor inside inner function first arg", () => {
+			const provider = createTextProvider(["func(a, bar(x, y), c)"]);
+			// Position 13: between 'x' and ','
+			const result = calculateArgumentSelect(provider, 0, 13);
+			assert.ok(result);
+			// Should select 'x'
+			assert.strictEqual(result.startChar, 12);
+			assert.strictEqual(result.endChar, 13);
+		});
+
+		test("handles nested parentheses - cursor inside inner function second arg", () => {
+			const provider = createTextProvider(["func(a, bar(x, y), c)"]);
+			// Position 16: between 'y' and ')'
+			const result = calculateArgumentSelect(provider, 0, 16);
+			assert.ok(result);
+			// Should select 'y'
+			assert.strictEqual(result.startChar, 15);
+			assert.strictEqual(result.endChar, 16);
+		});
+
+		test("handles cursor in outer argument containing nested call at function name", () => {
+			const provider = createTextProvider(["foo(bar(), baz, qux)"]);
+			// Position 6: at 'r' in 'bar()'
+			const result = calculateArgumentSelect(provider, 0, 6);
+			assert.ok(result);
+			// Should select 'bar()' only
+			assert.strictEqual(result.startChar, 4);
+			assert.strictEqual(result.endChar, 9);
+		});
+
+		test("handles cursor in outer argument containing nested call at opening paren", () => {
+			const provider = createTextProvider(["foo(bar(), baz, qux)"]);
+			// Position 7: at '(' in 'bar()'
+			const result = calculateArgumentSelect(provider, 0, 7);
+			assert.ok(result);
+			// Should select 'bar()' only
+			assert.strictEqual(result.startChar, 4);
+			assert.strictEqual(result.endChar, 9);
+		});
+
+		test("handles second argument after nested call", () => {
+			const provider = createTextProvider(["foo(bar(), baz, qux)"]);
+			// Position 12: at 'a' in 'baz'
+			const result = calculateArgumentSelect(provider, 0, 12);
+			assert.ok(result);
+			// Should select 'baz' only
+			assert.strictEqual(result.startChar, 11);
+			assert.strictEqual(result.endChar, 14);
+		});
+
+		test("handles multiple nested calls in different arguments", () => {
+			const provider = createTextProvider(["foo(bar(1), baz(2), qux)"]);
+			// Position 13: at 'a' in 'baz(2)'
+			const result = calculateArgumentSelect(provider, 0, 13);
+			assert.ok(result);
+			// Should select 'baz(2)' only
+			assert.strictEqual(result.startChar, 12);
+			assert.strictEqual(result.endChar, 18);
+		});
+
+		// Braces argument tests (ported from vscode-waltz)
+		test("finds first argument inside braces", () => {
+			const provider = createTextProvider(["type s struct{x int, y int}"]);
+			// Position 16: between 'x' and ' '
+			const result = calculateArgumentSelect(provider, 0, 16);
+			assert.ok(result);
+			// Should select 'x int'
+			assert.strictEqual(result.startChar, 14);
+			assert.strictEqual(result.endChar, 19);
+		});
+
+		test("finds second argument inside braces", () => {
+			const provider = createTextProvider(["type s struct{x int, y int}"]);
+			// Position 23: between 'y' and ' '
+			const result = calculateArgumentSelect(provider, 0, 23);
+			assert.ok(result);
+			// Should select 'y int'
+			assert.strictEqual(result.startChar, 21);
+			assert.strictEqual(result.endChar, 26);
+		});
+
+		test("handles braces with spaces", () => {
+			const provider = createTextProvider(["{  a  ,  b  }"]);
+			// Position 4: at 'a'
+			const result = calculateArgumentSelect(provider, 0, 4);
+			assert.ok(result);
+			// Should select 'a' (spaces excluded)
+			assert.strictEqual(result.startChar, 3);
+			assert.strictEqual(result.endChar, 4);
+		});
+
+		test("expands first brace argument to include comma after (aa)", () => {
+			const provider = createTextProvider(["{a, b, c}"]);
+			// Already selected 'a' (positions 1-2)
+			const result = calculateArgumentSelect(provider, 0, 2, 0, 1, 0, 2);
+			assert.ok(result);
+			// Should select 'a,'
+			assert.strictEqual(result.startChar, 1);
+			assert.strictEqual(result.endChar, 3);
+		});
+
+		test("expands middle brace argument to include comma before (aa)", () => {
+			const provider = createTextProvider(["{a, b, c}"]);
+			// Already selected 'b' (positions 4-5)
+			const result = calculateArgumentSelect(provider, 0, 5, 0, 4, 0, 5);
+			assert.ok(result);
+			// Should select ', b'
+			assert.strictEqual(result.startChar, 2);
+			assert.strictEqual(result.endChar, 5);
+		});
+
+		test("handles nested braces and parentheses - prefer inner parentheses", () => {
+			const provider = createTextProvider(["{a, func(x, y), c}"]);
+			// Position 10: at 'x'
+			const result = calculateArgumentSelect(provider, 0, 10);
+			assert.ok(result);
+			// Should select 'x' (inside the inner parentheses)
+			assert.strictEqual(result.startChar, 9);
+			assert.strictEqual(result.endChar, 10);
+		});
+
+		test("handles nested braces and parentheses - prefer inner braces", () => {
+			const provider = createTextProvider(["func(a, {x, y}, c)"]);
+			// Position 10: at 'x'
+			const result = calculateArgumentSelect(provider, 0, 10);
+			assert.ok(result);
+			// Should select 'x' (inside the inner braces)
+			assert.strictEqual(result.startChar, 9);
+			assert.strictEqual(result.endChar, 10);
+		});
+
+		test("handles Go struct literal syntax multiline", () => {
+			const provider = createTextProvider([
+				"type s struct{",
+				"    x int,",
+				"    y int,",
+				"}",
+			]);
+			// Position (1, 6): at 'x' on line 2
+			const result = calculateArgumentSelect(provider, 1, 6);
+			assert.ok(result);
+			// Should select 'x int'
+			assert.strictEqual(result.startLine, 1);
+			assert.strictEqual(result.startChar, 4);
+			assert.strictEqual(result.endLine, 1);
+			assert.strictEqual(result.endChar, 9);
+		});
+
+		test("handles single argument inside braces with aa", () => {
+			const provider = createTextProvider(["{a}"]);
+			// Already selected 'a' (positions 1-2)
+			const result = calculateArgumentSelect(provider, 0, 2, 0, 1, 0, 2);
+			assert.ok(result);
+			// Should select just 'a' (no comma to include)
+			assert.strictEqual(result.startChar, 1);
+			assert.strictEqual(result.endChar, 2);
+		});
+
+		test("handles strings inside braces", () => {
+			const provider = createTextProvider(['{"hello, world", b}']);
+			// Position 10: inside the string
+			const result = calculateArgumentSelect(provider, 0, 10);
+			assert.ok(result);
+			// Should select the entire string (commas inside strings should be ignored)
+			assert.strictEqual(result.startChar, 1);
+			assert.strictEqual(result.endChar, 15);
+		});
+
+		test("handles character literal with comma", () => {
+			const provider = createTextProvider(["func(',', b)"]);
+			// Position 6: between ',' and '\''
+			const result = calculateArgumentSelect(provider, 0, 6);
+			assert.ok(result);
+			// Should select the character literal ','
+			assert.strictEqual(result.startChar, 5);
+			assert.strictEqual(result.endChar, 8);
+		});
+
+		// Multiline argument tests (ported from vscode-waltz)
+		test("handles multiline first argument with ia in braces", () => {
+			const provider = createTextProvider([
+				"foo {",
+				"    bar,",
+				"    baz,",
+				"}",
+			]);
+			// Position (1, 6): at 'bar'
+			const result = calculateArgumentSelect(provider, 1, 6);
+			assert.ok(result);
+			// Should select 'bar' only (not including indentation)
+			assert.strictEqual(result.startLine, 1);
+			assert.strictEqual(result.startChar, 4);
+			assert.strictEqual(result.endLine, 1);
+			assert.strictEqual(result.endChar, 7);
+		});
+
+		test("handles multiline first argument with aa in braces", () => {
+			const provider = createTextProvider([
+				"foo {",
+				"    bar,",
+				"    baz,",
+				"}",
+			]);
+			// Already selected 'bar' (line 1, positions 4-7)
+			const result = calculateArgumentSelect(provider, 1, 6, 1, 4, 1, 7);
+			assert.ok(result);
+			// Should include comma after - '\n    bar,'
+			assert.strictEqual(result.startLine, 0);
+			assert.strictEqual(result.startChar, 5);
+			assert.strictEqual(result.endLine, 1);
+			assert.strictEqual(result.endChar, 8);
+		});
+
+		test("handles multiline second argument with ia in braces", () => {
+			const provider = createTextProvider([
+				"foo {",
+				"    bar,",
+				"    baz,",
+				"}",
+			]);
+			// Position (2, 6): at 'baz'
+			const result = calculateArgumentSelect(provider, 2, 6);
+			assert.ok(result);
+			// Should select 'baz' only
+			assert.strictEqual(result.startLine, 2);
+			assert.strictEqual(result.startChar, 4);
+			assert.strictEqual(result.endLine, 2);
+			assert.strictEqual(result.endChar, 7);
+		});
+
+		test("handles multiline second argument with aa in braces", () => {
+			const provider = createTextProvider([
+				"foo {",
+				"    bar,",
+				"    baz,",
+				"}",
+			]);
+			// Already selected 'baz' (line 2, positions 4-7)
+			const result = calculateArgumentSelect(provider, 2, 6, 2, 4, 2, 7);
+			assert.ok(result);
+			// Should include comma and newline+indentation from previous field
+			assert.strictEqual(result.startLine, 1);
+			assert.strictEqual(result.startChar, 7);
+			assert.strictEqual(result.endLine, 2);
+			assert.strictEqual(result.endChar, 7);
+		});
+
+		test("handles multiline arguments in parentheses with aa", () => {
+			const provider = createTextProvider([
+				"func(",
+				"    arg1,",
+				"    arg2,",
+				"    arg3",
+				")",
+			]);
+			// Already selected 'arg2' (line 2, positions 4-8)
+			const result = calculateArgumentSelect(provider, 2, 6, 2, 4, 2, 8);
+			assert.ok(result);
+			// Should include comma from previous line
+			assert.strictEqual(result.startLine, 1);
+			assert.strictEqual(result.startChar, 8);
+			assert.strictEqual(result.endLine, 2);
+			assert.strictEqual(result.endChar, 8);
+		});
+
+		test("handles multiline last argument with aa - no trailing comma", () => {
+			const provider = createTextProvider([
+				"func(",
+				"    arg1,",
+				"    arg2",
+				")",
+			]);
+			// Already selected 'arg2' (line 2, positions 4-8)
+			const result = calculateArgumentSelect(provider, 2, 6, 2, 4, 2, 8);
+			assert.ok(result);
+			// Should include comma from previous line
+			assert.strictEqual(result.startLine, 1);
+			assert.strictEqual(result.startChar, 8);
+			assert.strictEqual(result.endLine, 2);
+			assert.strictEqual(result.endChar, 8);
+		});
+
+		test("handles Go struct with multiple fields using aa", () => {
+			const provider = createTextProvider([
+				"type Person struct {",
+				"    Name string,",
+				"    Age int,",
+				"    City string,",
+				"}",
+			]);
+			// Already selected 'Age int' (line 2, positions 4-11)
+			const result = calculateArgumentSelect(provider, 2, 6, 2, 4, 2, 11);
+			assert.ok(result);
+			// Should include comma and newline+indentation from previous field
+			assert.strictEqual(result.startLine, 1);
+			assert.strictEqual(result.startChar, 15);
+			assert.strictEqual(result.endLine, 2);
+			assert.strictEqual(result.endChar, 11);
+		});
+
+		test("handles compact multiline - first arg with aa", () => {
+			const provider = createTextProvider(["{a,", "b}"]);
+			// Already selected 'a' (line 0, positions 1-2)
+			const result = calculateArgumentSelect(provider, 0, 2, 0, 1, 0, 2);
+			assert.ok(result);
+			// Should include comma after 'a'
+			assert.strictEqual(result.startLine, 0);
+			assert.strictEqual(result.startChar, 1);
+			assert.strictEqual(result.endLine, 0);
+			assert.strictEqual(result.endChar, 3);
+		});
+
+		test("handles compact multiline - second arg with aa", () => {
+			const provider = createTextProvider(["{a,", "b}"]);
+			// Already selected 'b' (line 1, positions 0-1)
+			const result = calculateArgumentSelect(provider, 1, 1, 1, 0, 1, 1);
+			assert.ok(result);
+			// Should include comma and newline before 'b'
+			assert.strictEqual(result.startLine, 0);
+			assert.strictEqual(result.startChar, 2);
+			assert.strictEqual(result.endLine, 1);
+			assert.strictEqual(result.endChar, 1);
+		});
 	});
 });
