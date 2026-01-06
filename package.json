@@ -70,6 +70,10 @@
       {
         "command": "extension.selectInTag",
         "title": "Quick Select: Select inside tag"
+      },
+      {
+        "command": "extension.selectArgument",
+        "title": "Quick Select: Select current argument"
       }
     ],
     "keybindings": [

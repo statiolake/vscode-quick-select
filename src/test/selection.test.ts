@@ -1,6 +1,7 @@
 import * as assert from "node:assert";
 import {
 	type TextProvider,
+	calculateArgumentSelect,
 	calculateMatchingSelect,
 	calculateSingleSelect,
 	findNextInText,
@@ -437,6 +438,156 @@ suite("Selection Core Tests", () => {
 			// Should expand to include parens
 			assert.strictEqual(result.startChar, 3);
 			assert.strictEqual(result.endChar, 8);
+		});
+	});
+
+	suite("calculateArgumentSelect", () => {
+		test("selects first argument in function call", () => {
+			const provider = createTextProvider(["func(arg1, arg2, arg3)"]);
+			// Cursor at position 6 (inside "arg1")
+			const result = calculateArgumentSelect(provider, 0, 6);
+			assert.ok(result);
+			assert.strictEqual(result.startLine, 0);
+			assert.strictEqual(result.startChar, 5);
+			assert.strictEqual(result.endLine, 0);
+			assert.strictEqual(result.endChar, 9);
+		});
+
+		test("selects middle argument in function call", () => {
+			const provider = createTextProvider(["func(arg1, arg2, arg3)"]);
+			// Cursor at position 12 (inside "arg2")
+			const result = calculateArgumentSelect(provider, 0, 12);
+			assert.ok(result);
+			assert.strictEqual(result.startChar, 11);
+			assert.strictEqual(result.endChar, 15);
+		});
+
+		test("selects last argument in function call", () => {
+			const provider = createTextProvider(["func(arg1, arg2, arg3)"]);
+			// Cursor at position 19 (inside "arg3")
+			const result = calculateArgumentSelect(provider, 0, 19);
+			assert.ok(result);
+			assert.strictEqual(result.startChar, 17);
+			assert.strictEqual(result.endChar, 21);
+		});
+
+		test("selects single argument", () => {
+			const provider = createTextProvider(["func(only_arg)"]);
+			const result = calculateArgumentSelect(provider, 0, 8);
+			assert.ok(result);
+			assert.strictEqual(result.startChar, 5);
+			assert.strictEqual(result.endChar, 13);
+		});
+
+		test("handles argument with string containing comma", () => {
+			const provider = createTextProvider(['func("a, b", arg2)']);
+			// Cursor inside the string "a, b"
+			const result = calculateArgumentSelect(provider, 0, 8);
+			assert.ok(result);
+			assert.strictEqual(result.startChar, 5);
+			assert.strictEqual(result.endChar, 11);
+		});
+
+		test("selects second argument after string with comma", () => {
+			const provider = createTextProvider(['func("a, b", arg2)']);
+			// Cursor at arg2
+			const result = calculateArgumentSelect(provider, 0, 15);
+			assert.ok(result);
+			assert.strictEqual(result.startChar, 13);
+			assert.strictEqual(result.endChar, 17);
+		});
+
+		test("handles escaped quotes in string", () => {
+			const provider = createTextProvider(['func("say \\"hello\\"", arg2)']);
+			// Cursor inside the string with escaped quotes
+			const result = calculateArgumentSelect(provider, 0, 10);
+			assert.ok(result);
+			assert.strictEqual(result.startChar, 5);
+			assert.strictEqual(result.endChar, 20);
+		});
+
+		test("handles single quoted strings", () => {
+			const provider = createTextProvider(["func('a, b', arg2)"]);
+			const result = calculateArgumentSelect(provider, 0, 8);
+			assert.ok(result);
+			assert.strictEqual(result.startChar, 5);
+			assert.strictEqual(result.endChar, 11);
+		});
+
+		test("handles nested parentheses in argument", () => {
+			const provider = createTextProvider(["func(inner(a, b), arg2)"]);
+			// Cursor inside inner(a, b)
+			const result = calculateArgumentSelect(provider, 0, 8);
+			assert.ok(result);
+			assert.strictEqual(result.startChar, 5);
+			assert.strictEqual(result.endChar, 16);
+		});
+
+		test("handles square brackets in array literal", () => {
+			const provider = createTextProvider(["func([1, 2, 3], arg2)"]);
+			// Cursor at position 8 is inside the array at "2"
+			// Should select "2" (the element inside [])
+			const result = calculateArgumentSelect(provider, 0, 8);
+			assert.ok(result);
+			assert.strictEqual(result.startChar, 9);
+			assert.strictEqual(result.endChar, 10);
+		});
+
+		test("handles curly braces in object literal", () => {
+			const provider = createTextProvider(["func({a: 1, b: 2}, arg2)"]);
+			// Cursor at position 10 is inside the object at "1"
+			// Should select "a: 1" (the first key-value pair inside {})
+			const result = calculateArgumentSelect(provider, 0, 10);
+			assert.ok(result);
+			assert.strictEqual(result.startChar, 6);
+			assert.strictEqual(result.endChar, 10);
+		});
+
+		test("handles multiline arguments", () => {
+			const provider = createTextProvider([
+				"func(",
+				"  arg1,",
+				"  arg2,",
+				"  arg3",
+				")",
+			]);
+			// Cursor on line 2 inside arg2
+			const result = calculateArgumentSelect(provider, 2, 4);
+			assert.ok(result);
+			assert.strictEqual(result.startLine, 2);
+			assert.strictEqual(result.startChar, 2);
+			assert.strictEqual(result.endLine, 2);
+			assert.strictEqual(result.endChar, 6);
+		});
+
+		test("handles template literals with expressions", () => {
+			const provider = createTextProvider(["func(`${a}, ${b}`, arg2)"]);
+			// Cursor inside the template literal
+			const result = calculateArgumentSelect(provider, 0, 10);
+			assert.ok(result);
+			assert.strictEqual(result.startChar, 5);
+			assert.strictEqual(result.endChar, 17);
+		});
+
+		test("returns null when not inside brackets", () => {
+			const provider = createTextProvider(["hello world"]);
+			const result = calculateArgumentSelect(provider, 0, 5);
+			assert.strictEqual(result, null);
+		});
+
+		test("handles empty arguments", () => {
+			const provider = createTextProvider(["func()"]);
+			const result = calculateArgumentSelect(provider, 0, 5);
+			assert.strictEqual(result, null);
+		});
+
+		test("trims whitespace from argument selection", () => {
+			const provider = createTextProvider(["func(  arg1  ,  arg2  )"]);
+			// Cursor at arg1
+			const result = calculateArgumentSelect(provider, 0, 8);
+			assert.ok(result);
+			assert.strictEqual(result.startChar, 7);
+			assert.strictEqual(result.endChar, 11);
 		});
 	});
 });

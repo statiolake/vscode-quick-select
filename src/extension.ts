@@ -5,6 +5,7 @@
 import * as vscode from "vscode";
 import {
 	type TextProvider,
+	calculateArgumentSelect,
 	calculateMatchingSelect,
 	calculateSingleSelect,
 } from "./selection";
@@ -96,6 +97,9 @@ export function activate(context: vscode.ExtensionContext) {
 			"extension.selectInTag",
 			matchingSelect.bind(null, { start_char: ">", end_char: "<" }),
 		),
+	);
+	context.subscriptions.push(
+		vscode.commands.registerCommand("extension.selectArgument", selectArgument),
 	);
 }
 
@@ -267,6 +271,32 @@ function matchingSelect({
 			start_char,
 			end_char,
 			outer,
+		);
+
+		if (!result) {
+			return s;
+		}
+
+		return new vscode.Selection(
+			new vscode.Position(result.startLine, result.startChar),
+			new vscode.Position(result.endLine, result.endChar),
+		);
+	});
+}
+
+function selectArgument() {
+	const editor = vscode.window.activeTextEditor;
+	if (!editor) {
+		return;
+	}
+	const doc = editor.document;
+	const textProvider = createTextProvider(doc);
+
+	editor.selections = editor.selections.map((s) => {
+		const result = calculateArgumentSelect(
+			textProvider,
+			s.active.line,
+			s.active.character,
 		);
 
 		if (!result) {
