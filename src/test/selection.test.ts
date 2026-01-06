@@ -589,5 +589,46 @@ suite("Selection Core Tests", () => {
 			assert.strictEqual(result.startChar, 7);
 			assert.strictEqual(result.endChar, 11);
 		});
+
+		// Around argument (aa) tests - expand to include comma when already selected inner
+		test("expands first argument to include comma after (aa)", () => {
+			const provider = createTextProvider(["func(a, b, c)"]);
+			// Already selected 'a' (positions 5-6)
+			const result = calculateArgumentSelect(provider, 0, 5, 0, 5, 0, 6);
+			assert.ok(result);
+			// Should expand to include comma: 'a,'
+			assert.strictEqual(result.startChar, 5);
+			assert.strictEqual(result.endChar, 7);
+		});
+
+		test("expands middle argument to include comma before (aa)", () => {
+			const provider = createTextProvider(["func(a, b, c)"]);
+			// Already selected 'b' (positions 8-9)
+			const result = calculateArgumentSelect(provider, 0, 8, 0, 8, 0, 9);
+			assert.ok(result);
+			// Should expand to include comma before: ', b'
+			assert.strictEqual(result.startChar, 6);
+			assert.strictEqual(result.endChar, 9);
+		});
+
+		test("expands last argument to include comma before (aa)", () => {
+			const provider = createTextProvider(["func(a, b, c)"]);
+			// Already selected 'c' (positions 11-12)
+			const result = calculateArgumentSelect(provider, 0, 11, 0, 11, 0, 12);
+			assert.ok(result);
+			// Should expand to include comma before: ', c'
+			assert.strictEqual(result.startChar, 9);
+			assert.strictEqual(result.endChar, 12);
+		});
+
+		test("single argument does not expand (no comma)", () => {
+			const provider = createTextProvider(["func(only)"]);
+			// Already selected 'only' (positions 5-9)
+			const result = calculateArgumentSelect(provider, 0, 6, 0, 5, 0, 9);
+			assert.ok(result);
+			// No comma to include, stays the same
+			assert.strictEqual(result.startChar, 5);
+			assert.strictEqual(result.endChar, 9);
+		});
 	});
 });

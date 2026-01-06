@@ -446,11 +446,16 @@ function findArgumentBoundaries(
 /**
  * Calculate selection range for the current argument at cursor position.
  * Handles strings with commas, nested brackets, and escaped characters.
+ * If already selected inner argument, expands to include comma (around argument).
  */
 export function calculateArgumentSelect(
 	textProvider: TextProvider,
 	cursorLine: number,
 	cursorChar: number,
+	anchorLine?: number,
+	anchorChar?: number,
+	endLine?: number,
+	endChar?: number,
 ): SelectionRange | null {
 	// Find enclosing brackets
 	const brackets = findEnclosingBrackets(textProvider, cursorLine, cursorChar);
@@ -509,20 +514,21 @@ export function calculateArgumentSelect(
 
 	// Calculate the actual argument text range (excluding delimiters and trimming whitespace)
 	// All indices are 0-based
-	let startLine = argStartBoundary.line;
-	let startIdx = argStartBoundary.idx + 1; // First character after the delimiter
-	let endLine = argEndBoundary.line;
-	let endIdx = argEndBoundary.idx - 1; // Last character before the delimiter
+	let resultStartLine = argStartBoundary.line;
+	let resultStartIdx = argStartBoundary.idx + 1; // First character after the delimiter
+	let resultEndLine = argEndBoundary.line;
+	let resultEndIdx = argEndBoundary.idx - 1; // Last character before the delimiter
 
 	// Trim leading whitespace
-	while (startLine <= endLine) {
-		const lineText = textProvider.getLineText(startLine);
-		const lineEndIdx = startLine === endLine ? endIdx : lineText.length - 1;
+	while (resultStartLine <= resultEndLine) {
+		const lineText = textProvider.getLineText(resultStartLine);
+		const lineEndIdx =
+			resultStartLine === resultEndLine ? resultEndIdx : lineText.length - 1;
 
 		let foundNonWhitespace = false;
-		for (let i = startIdx; i <= lineEndIdx; i++) {
+		for (let i = resultStartIdx; i <= lineEndIdx; i++) {
 			if (lineText[i] !== " " && lineText[i] !== "\t") {
-				startIdx = i;
+				resultStartIdx = i;
 				foundNonWhitespace = true;
 				break;
 			}
@@ -532,19 +538,19 @@ export function calculateArgumentSelect(
 			break;
 		}
 
-		startLine++;
-		startIdx = 0;
+		resultStartLine++;
+		resultStartIdx = 0;
 	}
 
 	// Trim trailing whitespace
-	while (endLine >= startLine) {
-		const lineText = textProvider.getLineText(endLine);
-		const lineStartIdx = endLine === startLine ? startIdx : 0;
+	while (resultEndLine >= resultStartLine) {
+		const lineText = textProvider.getLineText(resultEndLine);
+		const lineStartIdx = resultEndLine === resultStartLine ? resultStartIdx : 0;
 
 		let foundNonWhitespace = false;
-		for (let i = endIdx; i >= lineStartIdx; i--) {
+		for (let i = resultEndIdx; i >= lineStartIdx; i--) {
 			if (lineText[i] !== " " && lineText[i] !== "\t") {
-				endIdx = i;
+				resultEndIdx = i;
 				foundNonWhitespace = true;
 				break;
 			}
@@ -554,24 +560,76 @@ export function calculateArgumentSelect(
 			break;
 		}
 
-		endLine--;
-		if (endLine >= 0) {
-			endIdx = textProvider.getLineText(endLine).length - 1;
+		resultEndLine--;
+		if (resultEndLine >= 0) {
+			resultEndIdx = textProvider.getLineText(resultEndLine).length - 1;
 		}
 	}
 
 	// Check for empty argument
-	if (startLine > endLine || (startLine === endLine && startIdx > endIdx)) {
+	if (
+		resultStartLine > resultEndLine ||
+		(resultStartLine === resultEndLine && resultStartIdx > resultEndIdx)
+	) {
 		return null;
 	}
 
-	// Return 0-based indices for VS Code Selection compatibility
-	// startChar: 0-based index of first char (inclusive)
-	// endChar: 0-based index after last char (exclusive)
+	// Inner argument result (before checking for expansion)
+	const innerStartChar = resultStartIdx;
+	const innerEndChar = resultEndIdx + 1;
+
+	// Check if already selected inner argument - expand to around argument (include comma)
+	if (
+		anchorLine !== undefined &&
+		anchorChar !== undefined &&
+		endLine !== undefined &&
+		endChar !== undefined &&
+		resultStartLine === anchorLine &&
+		innerStartChar === anchorChar &&
+		resultEndLine === endLine &&
+		innerEndChar === endChar
+	) {
+		// Already selected inner, expand to around (include comma)
+		// For first argument: include comma after
+		// For other arguments: include comma before
+		// For single argument: no comma to include, stay the same
+		const isFirstArg =
+			argStartBoundary.line === brackets.openLine &&
+			argStartBoundary.idx === brackets.openChar - 1;
+
+		if (commas.length === 0) {
+			// Single argument, no comma to include
+			return {
+				startLine: resultStartLine,
+				startChar: innerStartChar,
+				endLine: resultEndLine,
+				endChar: innerEndChar,
+			};
+		}
+
+		if (isFirstArg) {
+			// First argument with more args: include comma after
+			return {
+				startLine: resultStartLine,
+				startChar: innerStartChar,
+				endLine: argEndBoundary.line,
+				endChar: argEndBoundary.idx + 1, // Include the comma
+			};
+		}
+		// Not first argument: include comma before
+		return {
+			startLine: argStartBoundary.line,
+			startChar: argStartBoundary.idx, // Include the comma
+			endLine: resultEndLine,
+			endChar: innerEndChar,
+		};
+	}
+
+	// Return inner argument
 	return {
-		startLine,
-		startChar: startIdx,
-		endLine,
-		endChar: endIdx + 1,
+		startLine: resultStartLine,
+		startChar: innerStartChar,
+		endLine: resultEndLine,
+		endChar: innerEndChar,
 	};
 }

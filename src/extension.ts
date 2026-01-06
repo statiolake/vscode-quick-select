@@ -297,6 +297,10 @@ function selectArgument() {
 			textProvider,
 			s.active.line,
 			s.active.character,
+			s.anchor.line,
+			s.anchor.character,
+			s.end.line,
+			s.end.character,
 		);
 
 		if (!result) {
