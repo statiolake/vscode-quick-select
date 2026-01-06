@@ -2,7 +2,7 @@
   "name": "customized-vscode-quick-select",
   "displayName": "Quick and Simple Text Selection (statiolake customized)",
   "description": "Jump to select between quote, brackets, tags, etc (statiolake customized version)",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "publisher": "statiolake",
   "repository": {
     "type": "git",
